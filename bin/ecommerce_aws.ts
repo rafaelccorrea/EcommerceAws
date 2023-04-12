@@ -13,5 +13,20 @@ const env: cdk.Environment = {
 
 const tags = {
   cost: "Ecommerce",
-  team: "Correa"
-}
+  team: "Correa",
+};
+
+// Criação da stack de produtos
+const productsAppStack = new ProductsAppStack(app, "ProductsApp", {
+  tags,
+  env,
+});
+
+// Criação da stack ecommerce
+const ecommerceApiStack = new EcommerceApiStack(app, "EcommerceApi", {
+  productsFetchHandler: productsAppStack.productsFetchHandler,
+  tags,
+  env,
+});
+
+ecommerceApiStack.addDependency(productsAppStack);
