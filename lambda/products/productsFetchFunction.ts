@@ -4,10 +4,10 @@ import {
   Context,
 } from "aws-lambda";
 
-export async function handler(
+export const handler = async (
   event: APIGatewayProxyEvent,
   context: Context
-): Promise<APIGatewayProxyResult> {
+): Promise<APIGatewayProxyResult> => {
   const lambdaRequestId = context.awsRequestId;
   const apiRequestId = event.requestContext.requestId;
 
@@ -15,10 +15,11 @@ export async function handler(
     `API Gateway RequestId: ${apiRequestId} - Lambda RequestId: ${lambdaRequestId}`
   );
 
-  const method = event.httpMethod;
-  if (event.resource === "/products") {
-    if (method === "GET") {
-      console.log("GET");
+  const { httpMethod, resource, pathParameters } = event;
+
+  if (resource === "/products") {
+    if (httpMethod === "GET") {
+      console.log("GET /products");
 
       return {
         statusCode: 200,
@@ -29,10 +30,30 @@ export async function handler(
     }
   }
 
+  if (resource === "/products/{id}" && httpMethod === "GET") {
+    const productId = pathParameters?.id;
+
+    if (!productId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          message: "Missing product ID",
+        }),
+      };
+    }
+
+    console.log(`GET /products/${productId}`);
+
+    return {
+      statusCode: 200,
+      body: `GET /products/${productId}`,
+    };
+  }
+
   return {
-    statusCode: 400,
+    statusCode: 404,
     body: JSON.stringify({
-      message: "Bad Request",
+      message: "Not Found",
     }),
   };
-}
+};
