@@ -20,8 +20,6 @@ export const handler = async (
   const apiRequestId = event.requestContext.requestId;
   const { resource, httpMethod, pathParameters, body } = event;
 
-  const productId = pathParameters?.id as string;
-
   console.log(
     `API Gateway RequestId: ${apiRequestId} - Lambda RequestId: ${awsRequestId}`
   );
@@ -37,9 +35,9 @@ export const handler = async (
   }
 
   if (resource === "/products/{id}") {
+    const productId = pathParameters!.id as string;
     if (httpMethod === "PUT") {
       const product = JSON.parse(body!) as Product;
-
       try {
         const productUpdated = await productRepository.update(
           productId,
@@ -56,10 +54,12 @@ export const handler = async (
     }
 
     if (httpMethod === "DELETE") {
-      console.log(`DELETE /products/${productId}`);
+      console.log(`DELETE /products/${pathParameters!.id}`);
 
       try {
-        const product = await productRepository.delete(productId);
+        const product = await productRepository.delete(
+          pathParameters!.id as string
+        );
 
         return {
           statusCode: 200,
