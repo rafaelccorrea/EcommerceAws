@@ -4,6 +4,15 @@ import {
   Context,
 } from "aws-lambda";
 
+import { ProductRepository } from "/opt/nodejs/productsLayer";
+
+import { DynamoDB } from "aws-sdk";
+
+const productsDdb = process.env.PRODUCTS_DDB!;
+const ddbClient = new DynamoDB.DocumentClient();
+
+const productRepository = new ProductRepository(ddbClient, productsDdb);
+
 export const handler = async (
   event: APIGatewayProxyEvent,
   context: Context
@@ -21,39 +30,41 @@ export const handler = async (
     if (httpMethod === "GET") {
       console.log("GET /products");
 
+      const products = await productRepository.getAllProducts();
+
       return {
         statusCode: 200,
-        body: JSON.stringify({
-          message: "GET products - OK",
-        }),
+        body: JSON.stringify(products),
       };
     }
   }
 
   if (resource === "/products/{id}" && httpMethod === "GET") {
-    const productId = pathParameters?.id;
+    const productId = pathParameters!.id as string;
 
-    if (!productId) {
+    try {
+      const product = await productRepository.getProductById(productId);
+
       return {
-        statusCode: 400,
+        statusCode: 200,
+        body: JSON.stringify(product),
+      };
+    } catch (err) {
+      console.error((<Error>err).message);
+
+      return {
+        statusCode: 404,
         body: JSON.stringify({
-          message: "Missing product ID",
+          message: (<Error>err).message,
         }),
       };
     }
-
-    console.log(`GET /products/${productId}`);
-
-    return {
-      statusCode: 200,
-      body: `GET /products/${productId}`,
-    };
   }
 
   return {
     statusCode: 404,
     body: JSON.stringify({
-      message: "Not Found",
+      message: "Resource not found",
     }),
   };
 };
