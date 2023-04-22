@@ -1,26 +1,43 @@
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodeJs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as cdk from "aws-cdk-lib";
-import * as dynadb from "aws-cdk-lib/aws-dynamodb";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 
 import { Construct } from "constructs";
 
 export class ProductsAppStack extends cdk.Stack {
   readonly productsFetchHandler: lambdaNodeJs.NodejsFunction;
   readonly productsAdminHandler: lambdaNodeJs.NodejsFunction;
-  readonly ProductsDdb = new dynadb.Table(this, "ProductsDdb", {
-    tableName: "products",
-    removalPolicy: cdk.RemovalPolicy.DESTROY,
-    partitionKey: {
-      name: "id",
-      type: dynadb.AttributeType.STRING,
-    },
-    billingMode: dynadb.BillingMode.PROVISIONED,
-    readCapacity: 1,
-    writeCapacity: 1,
-  });
+  readonly productsDdb: dynamodb.Table;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    this.productsDdb = new dynamodb.Table(this, "ProductsDdb", {
+      tableName: "products",
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      partitionKey: {
+        name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PROVISIONED,
+      readCapacity: 1,
+      writeCapacity: 1,
+    });
+
+    //Products Layer
+
+    const productLayerArn = ssm.StringParameter.valueForStringParameter(
+      this,
+      "ProdcutsLayerVersionArn"
+    );
+
+    const productsLayer = lambda.LayerVersion.fromLayerVersionArn(
+      this,
+      "ProdcutsLayerVersionArn",
+      productLayerArn
+    );
 
     // Stack Products
     this.productsFetchHandler = new lambdaNodeJs.NodejsFunction(
@@ -37,12 +54,13 @@ export class ProductsAppStack extends cdk.Stack {
           sourceMap: false,
         },
         environment: {
-          PRODUCTS_DDB: this.ProductsDdb.tableName,
+          PRODUCTS_DDB: this.productsDdb.tableName,
         },
+        layers: [productsLayer],
       }
     );
     // Permission Read Table Stack Product
-    this.ProductsDdb.grantReadData(this.productsFetchHandler);
+    this.productsDdb.grantReadData(this.productsFetchHandler);
 
     // Stack admin products
     this.productsAdminHandler = new lambdaNodeJs.NodejsFunction(
@@ -59,12 +77,13 @@ export class ProductsAppStack extends cdk.Stack {
           sourceMap: false,
         },
         environment: {
-          PRODUCTS_DDB: this.ProductsDdb.tableName,
+          PRODUCTS_DDB: this.productsDdb.tableName,
         },
+        layers: [productsLayer],
       }
     );
 
     // Permission Write Stack admin products
-    this.ProductsDdb.grantWriteData(this.productsAdminHandler);
+    this.productsDdb.grantWriteData(this.productsAdminHandler);
   }
 }
