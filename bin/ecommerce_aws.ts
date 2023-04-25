@@ -6,6 +6,7 @@ import {
   ProductsAppStack,
   EcommerceApiStack,
   ProductsAppLayersStack,
+  EventsDdbStack,
 } from "../lib";
 
 const app = new cdk.App();
@@ -21,7 +22,6 @@ const tags = {
 };
 
 // Criação de layers de produtos
-
 const productsAppLayersStack = new ProductsAppLayersStack(
   app,
   "ProductsAppLayers",
@@ -31,13 +31,20 @@ const productsAppLayersStack = new ProductsAppLayersStack(
   }
 );
 
+const eventsDdbStack = new EventsDdbStack(app, "EventsDdb", {
+  tags,
+  env,
+});
+
 // Criação da stack de produtos
 const productsAppStack = new ProductsAppStack(app, "ProductsApp", {
+  eventsDdb: eventsDdbStack.table,
   tags,
   env,
 });
 
 productsAppStack.addDependency(productsAppLayersStack);
+productsAppStack.addDependency(eventsDdbStack);
 
 // Criação da stack ecommerce
 const ecommerceApiStack = new EcommerceApiStack(app, "EcommerceApi", {
